@@ -13,7 +13,7 @@ const SAMPLES = [
     gotItCount: 850,
     sharesCount: 420,
     dislikesCount: 12,
-    avatarUrl: "https://picsum.photos/seed/shaq/200"
+    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop"
   },
   {
     senderName: "Mom",
@@ -22,7 +22,7 @@ const SAMPLES = [
     gotItCount: 980,
     sharesCount: 150,
     dislikesCount: 2,
-    avatarUrl: "https://picsum.photos/seed/mom/200"
+    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop"
   },
   {
     senderName: "System",
@@ -31,7 +31,7 @@ const SAMPLES = [
     gotItCount: 450,
     sharesCount: 310,
     dislikesCount: 5,
-    avatarUrl: ""
+    avatarUrl: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=200&h=200&fit=crop"
   }
 ];
 
@@ -50,7 +50,7 @@ export const LandingPage: React.FC = () => {
         backgroundColor: null,
         scale: 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
       });
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');

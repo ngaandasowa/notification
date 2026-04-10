@@ -33,11 +33,15 @@ export const Dashboard: React.FC = () => {
   }, [user]);
 
   const handleDelete = async (cardId: string) => {
-    // In a real app, use a custom modal. For now, we'll just delete.
+    if (!window.confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+      return;
+    }
+    
     try {
       await deleteDoc(doc(db, 'cards', cardId));
     } catch (err) {
       console.error('Delete error:', err);
+      alert('Failed to delete card. Please try again.');
     }
   };
 

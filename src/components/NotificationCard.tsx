@@ -50,7 +50,13 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
             style={{ backgroundColor: '#000000' }}
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt={senderName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img 
+                src={avatarUrl} 
+                alt={senderName} 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+              />
             ) : (
               <User className="w-5 h-5" style={{ color: '#ffffff' }} />
             )}

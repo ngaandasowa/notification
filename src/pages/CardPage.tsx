@@ -115,9 +115,9 @@ export const CardPage: React.FC = () => {
     const generationPromise = html2canvas(cardRef.current, {
       backgroundColor: null,
       scale: 2,
-      logging: true,
+      logging: false,
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false, // Changed to false to avoid security errors with cross-origin images
       onclone: (clonedDoc) => {
         const element = clonedDoc.getElementById('notification-card');
         if (element) {

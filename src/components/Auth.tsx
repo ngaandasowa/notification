@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
   signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { LogIn, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { LogIn, Mail, Lock, User as UserIcon, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const Auth: React.FC = () => {
@@ -18,6 +19,33 @@ export const Auth: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Handle redirect result on mount
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          setLoading(true);
+          const user = result.user;
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (!userDoc.exists()) {
+            await setDoc(doc(db, 'users', user.uid), {
+              userId: user.uid,
+              name: user.displayName || 'Anonymous',
+              email: user.email,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('Redirect result error:', err);
+        setError('Something went wrong during sign-in. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    handleRedirect();
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +65,13 @@ export const Auth: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already registered.');
+      } else {
+        setError('Authentication failed. Please check your details.');
+      }
     } finally {
       setLoading(false);
     }
@@ -49,15 +83,11 @@ export const Auth: React.FC = () => {
     const provider = new GoogleAuthProvider();
     
     try {
-      console.log('Initiating Google Sign-In popup...');
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
-      console.log('Google Sign-In successful for user:', user.uid);
       
-      // Check if user exists in Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (!userDoc.exists()) {
-        console.log('Creating new user document in Firestore...');
         await setDoc(doc(db, 'users', user.uid), {
           userId: user.uid,
           name: user.displayName || 'Anonymous',
@@ -67,13 +97,11 @@ export const Auth: React.FC = () => {
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        setError('The sign-in popup was blocked or cancelled. You can try "Sign in with Redirect" instead.');
+        setError('Sign-in was interrupted. Please try the "Alternative Method" below.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('The sign-in popup was closed before completion. Please try again and keep the window open.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection and try again.');
+        setError('The sign-in window was closed. Please try again.');
       } else {
-        setError(`Sign-in failed: ${err.message || 'Unknown error'}`);
+        setError('Google sign-in failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -85,11 +113,10 @@ export const Auth: React.FC = () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      console.log('Initiating Google Sign-In redirect...');
       await signInWithRedirect(auth, provider);
     } catch (err: any) {
       console.error('Google Redirect Error:', err);
-      setError(`Redirect failed: ${err.message}`);
+      setError('Failed to start sign-in. Please try again.');
       setLoading(false);
     }
   };
@@ -100,8 +127,8 @@ export const Auth: React.FC = () => {
         <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mb-4">
           <LogIn className="w-8 h-8 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-black">{isLogin ? 'Welcome Back' : 'Join Notification'}</h2>
-        <p className="text-gray-500 text-sm">{isLogin ? 'Sign in to your account' : 'Create a new account'}</p>
+        <h2 className="text-2xl font-bold text-black">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+        <p className="text-gray-500 text-sm">{isLogin ? 'Sign in to continue' : 'Join the community'}</p>
       </div>
 
       <form onSubmit={handleAuth} className="space-y-4">
@@ -146,7 +173,7 @@ export const Auth: React.FC = () => {
             <p className="text-black text-[10px] font-bold uppercase tracking-widest text-center">{error}</p>
             <div className="pt-2 border-t border-gray-200">
               <p className="text-[9px] text-gray-500 uppercase tracking-tighter font-bold text-center">
-                Troubleshooting: Try disabling ad-blockers, use a different browser, or ensure popups are allowed.
+                Tip: If popups are blocked, try the alternative method below.
               </p>
             </div>
           </div>
@@ -157,7 +184,7 @@ export const Auth: React.FC = () => {
           disabled={loading}
           className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50"
         >
-          {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+          {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
         </button>
       </form>
 
@@ -166,7 +193,7 @@ export const Auth: React.FC = () => {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200"></div>
           </div>
-          <span className="relative px-4 bg-white text-gray-400 text-xs uppercase font-bold">Or continue with</span>
+          <span className="relative px-4 bg-white text-gray-400 text-xs uppercase font-bold">Or</span>
         </div>
 
         <button
@@ -192,7 +219,7 @@ export const Auth: React.FC = () => {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Google Popup
+          Sign in with Google
         </button>
 
         <button
@@ -200,7 +227,8 @@ export const Auth: React.FC = () => {
           disabled={loading}
           className="w-full mt-2 py-2 bg-gray-50 border border-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          Sign in with Redirect (Fallback)
+          <Sparkles className="w-3 h-3" />
+          Alternative Method
         </button>
       </div>
 
