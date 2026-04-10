@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //
+    // Collection: cards
+    // Document ID: cardId
+    // Fields:
+    //   - cardId: string (required)
+    //   - userId: string (required)
+    //   - message: string (required)
+    //   - senderName: string (required)
+    //   - avatarUrl: string (optional)
+    //   - likesCount: number (required)
+    //   - gotItCount: number (required)
+    //   - sharesCount: number (required)
+    //   - dislikesCount: number (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: interactions
+    // Document ID: userId + "_" + cardId + "_" + type
+    // Fields:
+    //   - interactionId: string (required)
+    //   - userId: string (required)
+    //   - cardId: string (required)
+    //   - type: string (required, enum: like, gotIt, share, dislike)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['userId', 'name', 'email']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email);
+    }
+
+    function isValidCard(data) {
+      return data.keys().hasAll(['cardId', 'userId', 'message', 'senderName', 'likesCount', 'gotItCount', 'sharesCount', 'dislikesCount', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.senderName is string && data.senderName.size() > 0 && data.senderName.size() < 100 &&
+             data.likesCount == 0 && data.gotItCount == 0 && data.sharesCount == 0 && data.dislikesCount == 0;
+    }
+
+    function isValidInteraction(data) {
+      return data.keys().hasAll(['interactionId', 'userId', 'cardId', 'type']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['like', 'gotIt', 'share', 'dislike'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /cards/{cardId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidCard(request.resource.data);
+      allow update: if (isDocOwner() && request.resource.data.userId == resource.data.userId) || 
+                       (isAuthenticated() && isValidCounterUpdate(cardId));
+      allow delete: if isDocOwner();
+    }
+
+    function isValidCounterUpdate(cardId) {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      // Allow update only if one of the count fields is changing
+      return affectedKeys.hasOnly(['likesCount', 'gotItCount', 'sharesCount', 'dislikesCount']) &&
+             affectedKeys.size() == 1 &&
+             (
+               (affectedKeys.hasAny(['likesCount']) && checkInteraction(cardId, 'like', 'likesCount')) ||
+               (affectedKeys.hasAny(['gotItCount']) && checkInteraction(cardId, 'gotIt', 'gotItCount')) ||
+               (affectedKeys.hasAny(['sharesCount']) && 
+                 request.resource.data.sharesCount == resource.data.sharesCount + 1
+               ) ||
+               (affectedKeys.hasAny(['dislikesCount']) && checkInteraction(cardId, 'dislike', 'dislikesCount'))
+             );
+    }
+
+    function checkInteraction(cardId, type, field) {
+      let interactionId = request.auth.uid + "_" + cardId + "_" + type;
+      return request.resource.data[field] == resource.data[field] + 1 &&
+             !exists(/databases/$(database)/documents/interactions/$(interactionId)) &&
+             getAfter(/databases/$(database)/documents/interactions/$(interactionId)) != null;
+    }
+
+    match /interactions/{interactionId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+                       isValidInteraction(request.resource.data) && 
+                       (interactionId == request.auth.uid + "_" + request.resource.data.cardId + "_" + request.resource.data.type ||
+                        (request.resource.data.type == 'share' && interactionId.size() > 20));
+      // No update or delete for interactions to prevent count manipulation
+    }
+  }
+}

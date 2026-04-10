@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["userId", "name", "email"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "A notification-style card.",
+      "type": "object",
+      "properties": {
+        "cardId": { "type": "string" },
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "senderName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "gotItCount": { "type": "number" },
+        "sharesCount": { "type": "number" },
+        "dislikesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["cardId", "userId", "message", "senderName", "createdAt"]
+    },
+    "Interaction": {
+      "title": "Interaction",
+      "description": "A user's interaction with a card.",
+      "type": "object",
+      "properties": {
+        "interactionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "cardId": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "gotIt", "share", "dislike"] }
+      },
+      "required": ["interactionId", "userId", "cardId", "type"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "cards/{cardId}": {
+      "schema": "Card",
+      "description": "Notification cards."
+    },
+    "interactions/{interactionId}": {
+      "schema": "Interaction",
+      "description": "User interactions with cards."
+    }
+  }
+}
