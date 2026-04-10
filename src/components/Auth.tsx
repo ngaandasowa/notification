@@ -4,8 +4,6 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -19,33 +17,6 @@ export const Auth: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Handle redirect result on mount
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          setLoading(true);
-          const user = result.user;
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (!userDoc.exists()) {
-            await setDoc(doc(db, 'users', user.uid), {
-              userId: user.uid,
-              name: user.displayName || 'Anonymous',
-              email: user.email,
-            });
-          }
-        }
-      } catch (err: any) {
-        console.error('Redirect result error:', err);
-        setError('Something went wrong during sign-in. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    handleRedirect();
-  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,27 +67,16 @@ export const Auth: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        setError('Sign-in was interrupted. Please try the "Alternative Method" below.');
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for sign-in. Please add this URL to your Firebase Console "Authorized domains" list.');
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        setError('Sign-in was interrupted. Please ensure popups are allowed in your browser.');
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError('The sign-in window was closed. Please try again.');
       } else {
         setError('Google sign-in failed. Please try again.');
       }
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleRedirect = async () => {
-    setError(null);
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (err: any) {
-      console.error('Google Redirect Error:', err);
-      setError('Failed to start sign-in. Please try again.');
       setLoading(false);
     }
   };
@@ -173,7 +133,9 @@ export const Auth: React.FC = () => {
             <p className="text-black text-[10px] font-bold uppercase tracking-widest text-center">{error}</p>
             <div className="pt-2 border-t border-gray-200">
               <p className="text-[9px] text-gray-500 uppercase tracking-tighter font-bold text-center">
-                Tip: If popups are blocked, try the alternative method below.
+                {error.includes('Authorized domains') 
+                  ? 'Go to Firebase Console > Auth > Settings > Authorized domains and add this domain.'
+                  : 'Tip: Ensure popups are allowed in your browser settings.'}
               </p>
             </div>
           </div>
@@ -220,15 +182,6 @@ export const Auth: React.FC = () => {
             />
           </svg>
           Sign in with Google
-        </button>
-
-        <button
-          onClick={handleGoogleRedirect}
-          disabled={loading}
-          className="w-full mt-2 py-2 bg-gray-50 border border-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <Sparkles className="w-3 h-3" />
-          Alternative Method
         </button>
       </div>
 

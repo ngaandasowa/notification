@@ -1,6 +1,8 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
+import { doc, getDocFromServer } from 'firebase/firestore';
 import { Layout } from './components/Layout';
 import { Auth } from './components/Auth';
 import { LandingPage } from './pages/LandingPage';
@@ -14,6 +16,20 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const [user, loading] = useAuthState(auth);
+
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, '_system_', 'connection-test'));
+        console.log('Firestore connection test successful');
+      } catch (error: any) {
+        if (error.message?.includes('the client is offline')) {
+          console.error("Firebase configuration error: The client is offline. Please check your Firebase settings.");
+        }
+      }
+    };
+    testConnection();
+  }, []);
 
   if (loading) {
     return (
