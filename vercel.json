@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://ngaatec-1737992172881.firebaseapp.com/__/auth/:path*"
+    }
+  ]
+}
