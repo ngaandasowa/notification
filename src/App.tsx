@@ -9,6 +9,9 @@ import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { CreatorPage } from './pages/CreatorPage';
 import { CardPage } from './pages/CardPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { LeaderboardPage } from './pages/LeaderboardPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { Loader2 } from 'lucide-react';
@@ -48,6 +51,9 @@ export default function App() {
             <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <div className="flex justify-center py-12"><Auth /></div>} />
             <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/auth" />} />
             <Route path="/create" element={user ? <CreatorPage /> : <Navigate to="/auth" />} />
+            <Route path="/profile" element={user ? <ProfilePage /> : <Navigate to="/auth" />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/community" element={<CommunityPage />} />
             <Route path="/card/:cardId" element={<CardPage />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />

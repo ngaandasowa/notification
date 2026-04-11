@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc, onSnapshot, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, onSnapshot, runTransaction, increment } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { NotificationCard } from '../components/NotificationCard';
 import { Share2, Copy, Check, ArrowLeft, Loader2, Download, MessageCircle } from 'lucide-react';
@@ -19,6 +19,18 @@ export const CardPage: React.FC = () => {
 
   useEffect(() => {
     if (!cardId) return;
+
+    // Track view
+    const trackView = async () => {
+      try {
+        await updateDoc(doc(db, 'cards', cardId), {
+          viewsCount: increment(1)
+        });
+      } catch (e) {
+        console.warn('Failed to track view:', e);
+      }
+    };
+    trackView();
 
     const unsubscribe = onSnapshot(doc(db, 'cards', cardId), (doc) => {
       if (doc.exists()) {
@@ -92,8 +104,23 @@ export const CardPage: React.FC = () => {
       });
 
       const url = window.location.href;
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Check out this notification: ${url}`)}`;
-      window.open(whatsappUrl, '_blank');
+      const text = `Check out this viral notification card: ${url}`;
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      
+      // Try native share first if available
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Notification Card',
+            text: text,
+            url: url,
+          });
+        } catch (e) {
+          window.open(whatsappUrl, '_blank');
+        }
+      } else {
+        window.open(whatsappUrl, '_blank');
+      }
     } catch (err) {
       console.error('Share error:', err);
     }

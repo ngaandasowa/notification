@@ -6,7 +6,7 @@ import {
   signInWithPopup, 
   GoogleAuthProvider
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { LogIn, Mail, Lock, User as UserIcon, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -63,6 +63,9 @@ export const Auth: React.FC = () => {
           userId: user.uid,
           name: user.displayName || 'Anonymous',
           email: user.email,
+          username: (user.displayName || 'user').toLowerCase().replace(/\s/g, '') + Math.floor(Math.random() * 1000),
+          avatarUrl: user.photoURL || '',
+          createdAt: serverTimestamp()
         });
       }
     } catch (err: any) {

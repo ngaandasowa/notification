@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { Bell, LogOut, User as UserIcon, Plus } from 'lucide-react';
+import { Bell, LogOut, User as UserIcon, Plus, Trophy, MessageSquare } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,6 +31,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="text-xl font-black tracking-tighter uppercase">Notification</span>
             </Link>
 
+            <div className="hidden md:flex items-center gap-8">
+              <Link to="/leaderboard" className="text-xs font-black uppercase tracking-widest text-gray-500 hover:text-black transition-colors flex items-center gap-2">
+                <Trophy className="w-4 h-4" />
+                Leaderboard
+              </Link>
+              <Link to="/community" className="text-xs font-black uppercase tracking-widest text-gray-500 hover:text-black transition-colors flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Community
+              </Link>
+            </div>
+
             <div className="flex items-center gap-4">
               {user ? (
                 <>
@@ -42,11 +53,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     Create Card
                   </Link>
                   <Link
+                    to="/profile"
+                    className="p-2 text-gray-500 hover:text-black transition-colors"
+                    title="Profile Settings"
+                  >
+                    <UserIcon className="w-6 h-6" />
+                  </Link>
+                  <Link
                     to="/dashboard"
                     className="p-2 text-gray-500 hover:text-black transition-colors"
                     title="Dashboard"
                   >
-                    <UserIcon className="w-6 h-6" />
+                    <Bell className="w-6 h-6" />
                   </Link>
                   <button
                     onClick={handleSignOut}
@@ -95,6 +113,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Platform</h4>
               <ul className="space-y-2 text-sm font-bold">
                 <li><Link to="/" className="hover:text-gray-400 transition-colors">Home</Link></li>
+                <li><Link to="/leaderboard" className="hover:text-gray-400 transition-colors">Leaderboard</Link></li>
+                <li><Link to="/community" className="hover:text-gray-400 transition-colors">Community</Link></li>
                 <li><Link to="/dashboard" className="hover:text-gray-400 transition-colors">Dashboard</Link></li>
                 <li><Link to="/create" className="hover:text-gray-400 transition-colors">Create Card</Link></li>
               </ul>

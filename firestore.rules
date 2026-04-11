@@ -59,7 +59,10 @@ service cloud.firestore {
       return data.keys().hasAll(['userId', 'name', 'email']) &&
              data.userId == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             isValidEmail(data.email);
+             isValidEmail(data.email) &&
+             (!('username' in data) || (data.username is string && data.username.size() < 50)) &&
+             (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() < 500)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 500));
     }
 
     function isValidCard(data) {
@@ -67,7 +70,14 @@ service cloud.firestore {
              data.userId == request.auth.uid &&
              data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
              data.senderName is string && data.senderName.size() > 0 && data.senderName.size() < 100 &&
-             data.likesCount == 0 && data.gotItCount == 0 && data.sharesCount == 0 && data.dislikesCount == 0;
+             data.likesCount == 0 && data.gotItCount == 0 && data.sharesCount == 0 && data.dislikesCount == 0 &&
+             (!('viewsCount' in data) || data.viewsCount == 0);
+    }
+
+    function isValidCommunityPost(data) {
+      return data.keys().hasAll(['postId', 'userId', 'content', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 2000;
     }
 
     function isValidInteraction(data) {
@@ -81,7 +91,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
     }
 
@@ -89,14 +99,14 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && isValidCard(request.resource.data);
       allow update: if (isDocOwner() && request.resource.data.userId == resource.data.userId) || 
-                       (isAuthenticated() && isValidCounterUpdate(cardId));
+                       (isValidCounterUpdate(cardId));
       allow delete: if isDocOwner();
     }
 
     function isValidCounterUpdate(cardId) {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       // Allow update only if one of the count fields is changing
-      return affectedKeys.hasOnly(['likesCount', 'gotItCount', 'sharesCount', 'dislikesCount']) &&
+      return affectedKeys.hasOnly(['likesCount', 'gotItCount', 'sharesCount', 'dislikesCount', 'viewsCount']) &&
              affectedKeys.size() == 1 &&
              (
                (affectedKeys.hasAny(['likesCount']) && checkInteraction(cardId, 'like', 'likesCount')) ||
@@ -104,8 +114,22 @@ service cloud.firestore {
                (affectedKeys.hasAny(['sharesCount']) && 
                  request.resource.data.sharesCount == resource.data.sharesCount + 1
                ) ||
-               (affectedKeys.hasAny(['dislikesCount']) && checkInteraction(cardId, 'dislike', 'dislikesCount'))
+               (affectedKeys.hasAny(['dislikesCount']) && checkInteraction(cardId, 'dislike', 'dislikesCount')) ||
+               (affectedKeys.hasAny(['viewsCount']) && 
+                 request.resource.data.viewsCount == resource.data.viewsCount + 1
+               )
              );
+    }
+
+    match /community/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidCommunityPost(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid);
+    }
+
+    match /stats/global {
+      allow read: if true;
+      allow write: if false;
     }
 
     function checkInteraction(cardId, type, field) {

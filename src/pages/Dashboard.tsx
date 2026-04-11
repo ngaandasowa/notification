@@ -120,7 +120,7 @@ export const Dashboard: React.FC = () => {
                 />
               </div>
               
-              <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <Link
                   to={`/card/${card.cardId}`}
                   className="p-2 bg-white border border-gray-200 text-black rounded-lg hover:bg-gray-50 transition-all shadow-lg"

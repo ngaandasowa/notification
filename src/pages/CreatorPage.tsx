@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db, storage } from '../firebase';
-import { collection, setDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, setDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { NotificationCard } from '../components/NotificationCard';
-import { Camera, Download, Loader2, Sparkles } from 'lucide-react';
+import { Camera, Download, Loader2, Sparkles, Save, RotateCcw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 export const CreatorPage: React.FC = () => {
@@ -16,13 +16,58 @@ export const CreatorPage: React.FC = () => {
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
+  // Load draft and profile on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const loadData = async () => {
+      // Load draft from localStorage
+      const savedDraft = localStorage.getItem(`draft_${user.uid}`);
+      if (savedDraft) {
+        const { message: m, senderName: s, avatarPreview: a } = JSON.parse(savedDraft);
+        setMessage(m || '');
+        setSenderName(s || '');
+        setAvatarPreview(a || null);
+      }
+
+      // If senderName is empty, try to use profile name
+      if (!senderName) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setSenderName(userData.name || userData.username || '');
+          if (!avatarPreview) {
+            setAvatarPreview(userData.avatarUrl || null);
+          }
+        }
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (!user) return;
+    const draft = { message, senderName, avatarPreview };
+    localStorage.setItem(`draft_${user.uid}`, JSON.stringify(draft));
+    setDraftSaved(true);
+    const timer = setTimeout(() => setDraftSaved(false), 2000);
+    return () => clearTimeout(timer);
+  }, [message, senderName, avatarPreview, user]);
+
+  const clearDraft = () => {
+    if (window.confirm('Clear current draft?')) {
+      setMessage('');
+      setSenderName('');
+      setAvatarPreview(null);
+      setAvatar(null);
+      if (user) localStorage.removeItem(`draft_${user.uid}`);
     }
-  }, [user, authLoading, navigate]);
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,16 +150,34 @@ export const CreatorPage: React.FC = () => {
       const newCardRef = doc(cardsRef);
       const cardId = newCardRef.id;
 
+      console.log('Generating card image for SEO...');
+      const pngData = await generatePNG();
+      let imageUrl = '';
+      if (pngData) {
+        try {
+          const imageRef = ref(storage, `cards/${cardId}.png`);
+          const response = await fetch(pngData);
+          const blob = await response.blob();
+          await uploadBytes(imageRef, blob);
+          imageUrl = await getDownloadURL(imageRef);
+          console.log('Card image uploaded for SEO:', imageUrl);
+        } catch (e) {
+          console.warn('Failed to upload card image for SEO:', e);
+        }
+      }
+
       const cardData = {
         cardId,
         userId: user.uid,
         message,
         senderName,
         avatarUrl,
+        imageUrl,
         likesCount: 0,
         gotItCount: 0,
         sharesCount: 0,
         dislikesCount: 0,
+        viewsCount: 0,
         createdAt: serverTimestamp(),
       };
 
@@ -125,20 +188,20 @@ export const CreatorPage: React.FC = () => {
       );
 
       await Promise.race([firestorePromise, firestoreTimeout]);
+      
+      // Update global stats
+      try {
+        await updateDoc(doc(db, 'stats', 'global'), {
+          totalCards: increment(1)
+        });
+      } catch (e) {
+        console.warn('Failed to update global stats:', e);
+      }
+
       console.log('Firestore save successful');
 
-      console.log('Starting PNG generation (non-blocking)...');
-      generatePNG().then(pngData => {
-        if (pngData) {
-          console.log('PNG generated successfully, triggering download');
-          const link = document.createElement('a');
-          link.href = pngData;
-          link.download = `notification-${cardId}.png`;
-          link.click();
-        }
-      }).catch(pngErr => {
-        console.error('Background PNG generation failed:', pngErr);
-      });
+      // Clear draft after successful creation
+      localStorage.removeItem(`draft_${user.uid}`);
 
       console.log('Navigating to card page...');
       navigate(`/card/${cardId}`);
@@ -170,7 +233,24 @@ export const CreatorPage: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
       <div className="space-y-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-black tracking-tighter uppercase">Create Card</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-4xl font-black tracking-tighter uppercase">Create Card</h1>
+            <div className="flex items-center gap-2">
+              {draftSaved && (
+                <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest flex items-center gap-1">
+                  <Save className="w-3 h-3" />
+                  Saved
+                </span>
+              )}
+              <button 
+                onClick={clearDraft}
+                className="p-2 text-gray-400 hover:text-black transition-colors"
+                title="Clear Draft"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
           <p className="text-gray-500">Design your notification-style message.</p>
         </div>
 

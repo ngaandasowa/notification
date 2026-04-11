@@ -7,7 +7,11 @@
       "properties": {
         "userId": { "type": "string" },
         "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" }
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "name", "email"]
     },
@@ -25,9 +29,36 @@
         "gotItCount": { "type": "number" },
         "sharesCount": { "type": "number" },
         "dislikesCount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "viewsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "imageUrl": { "type": "string" }
       },
       "required": ["cardId", "userId", "message", "senderName", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "A post in the community section.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "likes": { "type": "number" }
+      },
+      "required": ["postId", "userId", "content", "createdAt"]
+    },
+    "Stats": {
+      "title": "Stats",
+      "description": "Global application statistics.",
+      "type": "object",
+      "properties": {
+        "totalUsers": { "type": "number" },
+        "totalViews": { "type": "number" },
+        "totalCards": { "type": "number" }
+      }
     },
     "Interaction": {
       "title": "Interaction",
@@ -54,6 +85,14 @@
     "interactions/{interactionId}": {
       "schema": "Interaction",
       "description": "User interactions with cards."
+    },
+    "community/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Community posts."
+    },
+    "stats/global": {
+      "schema": "Stats",
+      "description": "Global stats."
     }
   }
 }
